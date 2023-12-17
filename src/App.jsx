@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
-import { Tabs, Card, Button, Slider, notification } from "antd";
+import { Tabs, Card, Button, Slider, notification, Switch, } from "antd";
 //import 'antd/dist/antd.css';
 
 const { TabPane } = Tabs;
@@ -14,6 +14,8 @@ const App = () => {
   const [lightOn, setLightOn] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState("middle");
   const [lightMode, setLightMode] = useState("automation");
+  const [dataCard, setDataCard] = useState(0);
+  const [alarmStatus, setAlarmStatus] = useState(false);
 
   useEffect(() => {
     // Подключение к WebSocket серверу
@@ -30,6 +32,29 @@ const App = () => {
       setlimitTemp(data.limitTemp);
       setlimitHum(data.limitHum);
     });
+
+    socket.on("esp32-data1", (data1) => {
+      // Обработка данных, полученных от сервера
+      console.log("Получены данные от сервера:", data1);
+      // Обновление состояния с данными о температуре и влажности
+      if (data1.validCard === 1) {
+        notification.success({
+          message: 'Access Granted',
+          description: `Access is granted for card number: ${data1.card}`,
+          placement: 'topRight',
+        });
+      } else if (data1.validCard === 0){
+        notification.error({
+          message: 'Access Denied',
+          description: `Access is denied for card number: ${data1.card}`,
+          placement: 'topRight',
+        });
+      }
+
+      setDataCard(data1.card);
+    });
+
+    
 
     // Обработка отключения
     socket.on("disconnect", () => {
@@ -190,6 +215,30 @@ useEffect(() => {
   }
 }, [humidity, limitHum]);
   
+const handleAlarmStatusChange = (checked) => {
+  setAlarmStatus(checked);
+
+  // Предполагаем, что сервер ожидает GET запрос для обновления статуса сигнализации
+  const url = `http://api.tcpa-dsp-dev.dt00.net:3001/HomePage/project/alarmStatus_change/${checked ? 1 : 0}`;
+  
+  fetch(url, {
+    method: 'GET',
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error('Ошибка сетевого ответа');
+    }
+    return response.json();
+  })
+  .then(data => {
+    console.log('Статус сигнализации успешно обновлен:', data);
+    // Обработка успешного ответа
+  })
+  .catch((error) => {
+    console.error('Ошибка при обновлении статуса сигнализации:', error);
+    // Обработка ошибок
+  });
+};
 
   return (
     <div style={{ padding: "20px" }}>
@@ -215,7 +264,12 @@ useEffect(() => {
           </Card>
         </TabPane>
         <TabPane tab="Security" key="2">
-          {/* Содержимое вкладки Securiri */}
+        <Card title="Security System">
+            <Switch
+              checked={alarmStatus}
+              onChange={handleAlarmStatusChange}
+            /> Alarm On/Off
+          </Card>
         </TabPane>
         <TabPane tab="Light" key="3">
           <Card title="Light Controls">
@@ -229,6 +283,7 @@ useEffect(() => {
             >
               <div>
                 <Button
+                style={{marginRight: 10}}
                   size="large"
                   type={selectedPreset === "low" ? "primary" : "default"}
                   onClick={() => handlePreset("low")}
@@ -236,6 +291,7 @@ useEffect(() => {
                   Low
                 </Button>
                 <Button
+                style={{marginRight: 10}}
                   size="large"
                   type={selectedPreset === "middle" ? "primary" : "default"}
                   onClick={() => handlePreset("middle")}
@@ -243,6 +299,7 @@ useEffect(() => {
                   Middle
                 </Button>
                 <Button
+                style={{marginRight: 10}}
                   size="large"
                   type={selectedPreset === "high" ? "primary" : "default"}
                   onClick={() => handlePreset("high")}
@@ -251,13 +308,13 @@ useEffect(() => {
                 </Button>
               </div>
               <div>
-                    <Button size="large" type={lightMode === 'off' ? 'primary' : 'default'} onClick={() => handleModeChange('off')}>
+                    <Button size="large" type={lightMode === 'off' ? 'primary' : 'default'} onClick={() => handleModeChange('off')} style={{marginRight: 10}}>
                         Off
                     </Button>
-                    <Button size="large" type={lightMode === 'automation' ? 'primary' : 'default'} onClick={() => handleModeChange('automation')}>
+                    <Button size="large" type={lightMode === 'automation' ? 'primary' : 'default'} onClick={() => handleModeChange('automation')} style={{marginRight: 10}}>
                         Automation
                     </Button>
-                    <Button size="large" type={lightMode === 'on' ? 'primary' : 'default'} onClick={() => handleModeChange('on')}>
+                    <Button size="large" type={lightMode === 'on' ? 'primary' : 'default'} onClick={() => handleModeChange('on')} style={{marginRight: 10}}>
                         On
                     </Button>
                 </div>
